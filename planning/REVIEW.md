@@ -90,3 +90,25 @@ Documentation only, safe to commit. Consider finding 1 before the backend agent 
 ### Resolution (2026-10-16)
 
 - PR #3 merged a different `planning/MARKET_DATA_DESIGN.md` into `main`, written against the existing `backend/app/market/` code. That version is kept at that path. The design reviewed above was moved to `planning/MARKET_DATA_DESIGN_GREENFIELD.md`.
+
+## Review of branch `market-data-review-fixes` (2026-10-16)
+
+**Scope**:
+- Code: `backend/app/market/` (`massive_client.py`, `stream.py`, `simulator.py`, `cache.py`, `interface.py`, `__init__.py`) and `backend/tests/market/`.
+- Dependencies: FastAPI upgraded to 0.143.3.
+- Docs: three planning docs archived; `PLAN.md`, `MASSIVE_API.md`, `MARKET_DATA_SUMMARY.md`, `MARKET_DATA_DESIGN.md`, `MARKET_DATA_REVIEW.md` and `backend/CLAUDE.md` updated.
+
+### Findings
+
+1. **Every fix is tied to a reproduced problem.** Each finding in `MARKET_DATA_REVIEW.md` was reproduced first, then covered by a test; see its §7.
+2. **Behaviour change for consumers:**
+   - SSE now sends `{}` when the cache empties;
+   - the first event can be `{}` if the cache is empty at connect.
+   The frontend must treat each event as the full board.
+3. **Behaviour change for routes:** after `start`, Massive `add_ticker` makes a network call and can raise `UnknownTickerError`. The watchlist route must map that to HTTP 400.
+4. **FastAPI upgrade:** it pulls in `opentelemetry-api` as a new transitive dependency. It is harmless, but it makes the image slightly larger.
+5. **Live tests need a socket:** the live SSE test binds `127.0.0.1` on a random port. It is fine locally and in CI, but it will fail in a sandbox with no networking.
+
+### Verdict
+
+Ready to merge. The Massive source is still untested against the live API.

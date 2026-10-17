@@ -1584,14 +1584,16 @@ asyncio.run(main())"
 
 Work items to bring `backend/app/market/` from v1 to this design, in a sensible order. Each item should land with its tests.
 
-1. [ ] **Fix Massive timestamp/price parsing** — add `parse_snapshot()` (§11.2) and switch `_poll_once` to it. Replace the `MagicMock` snapshot fixtures with `TickerSnapshot.from_dict(...)` (§16.4).
-2. [ ] Add `tickers.py` (`normalize_ticker`, `InvalidTickerError`, `DEFAULT_TICKERS`) and call it in both sources' `start/add/remove`.
-3. [ ] `PriceUpdate.day_ref_price` + `day_change` / `day_change_percent`, included in `to_dict()`.
-4. [ ] `PriceCache.update(..., day_ref_price=None)` (sticky), `remove()` bumps version, `version` read under the lock.
-5. [ ] Simulator: injectable `rng`; seed the cache with `day_ref_price=seed`; `add_ticker` no-op guard.
-6. [ ] Massive: injectable `client`, backoff, immediate fetch in `add_ticker`, in-flight removal guard.
-7. [ ] Factory: `MASSIVE_POLL_INTERVAL`; add it to `.env.example`.
-8. [ ] SSE: router created per factory call, heartbeat ping, empty-board frame, public `generate_events`; add `test_stream.py`.
-9. [ ] Shared contract test across both sources (§16.5).
-10. [ ] Update `MARKET_DATA_SUMMARY.md` and `backend/CLAUDE.md` to reflect v2.
+Status as of 2026-10-16 (branch `market-data-review-fixes`, see `MARKET_DATA_REVIEW.md` §7):
+
+1. [x] **Fix Massive timestamp/price parsing**: `parse_snapshot()` reads `sip_timestamp` (ns) with the price fallback chain; fixtures use `TickerSnapshot.from_dict(...)`.
+2. [x] `normalize_ticker()` in all `start/add/remove` calls. It lives in `interface.py`, not `tickers.py`, next to `UnknownTickerError`. Format validation (`InvalidTickerError`) is left to the API layer.
+3. [ ] ~~`day_ref_price`~~: superseded. `reference_price` + `change_pct` (PLAN.md §6) already cover the daily change.
+4. [x] `remove()` bumps `version`. (`version` is still read without the lock; it is an int read, atomic in CPython.)
+5. [x] Simulator: seeded `numpy` RNG (`seed=`); `add_ticker` no-op guard. The seed price is the reference via the cache's first-seen rule.
+6. [x] Massive: immediate fetch in `add_ticker` (raises `UnknownTickerError`), in-flight removal guard. Not done: injectable client (tests patch `RESTClient`) and backoff (the loop retries every interval).
+7. [ ] `MASSIVE_POLL_INTERVAL`: not added. The 5 s default matches PLAN.md, so no new env var is needed.
+8. [x] SSE: router created per factory call; keepalive pings and disconnect handling come from FastAPI's `EventSourceResponse`; an empty map is sent after the last removal; public `price_events()`; `test_stream.py`.
+9. [x] Shared contract test across both sources (`tests/market/test_contract.py`).
+10. [x] `MARKET_DATA_SUMMARY.md` and `backend/CLAUDE.md` updated.
 11. [ ] (Backend agent) `lifespan`, `sync_tracked_tickers`, and the watchlist/trade/portfolio touch points in §14.

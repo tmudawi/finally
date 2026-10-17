@@ -215,7 +215,7 @@ for b in bars:
 2. **Price:** `last_trade.price`, with the fallback chain in 4.1.
 3. **Reference price for `change_pct`:** `prev_day.close`.
 4. **Ticker validation on watchlist add:** request a snapshot for just that ticker; empty result means unknown → HTTP 400.
-5. **Free keys:** the snapshot endpoint returns 403, so live prices are impossible. The simulator is the right default; a free key could at most provide static EOD prices via grouped daily (one call per day). See `MARKET_INTERFACE.md` for how this is handled.
+5. **Free keys:** the snapshot endpoint returns 403, so live prices are impossible. The simulator is the right default; a free key could at most provide static EOD prices via grouped daily (one call per day). See `MARKET_DATA_SUMMARY.md` for how this is handled.
 6. Wrap the synchronous client in `asyncio.to_thread` so polling never blocks the event loop.
 
 ## Sources

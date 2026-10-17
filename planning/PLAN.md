@@ -151,7 +151,7 @@ DB_PATH=
 
 Both the simulator and the Massive client implement the same abstract interface. The backend selects which to use based on the environment variable. All downstream code (SSE streaming, price cache, frontend) is agnostic to the source.
 
-Detailed design: `MARKET_INTERFACE.md` (interface, price cache, SSE), `MARKET_SIMULATOR.md` (simulator), `MASSIVE_API.md` (Massive endpoints and plans).
+Detailed design: `MARKET_DATA_SUMMARY.md` (what was built and how to use it), `MARKET_DATA_DESIGN.md` (detailed design), `MASSIVE_API.md` (Massive endpoints and plans). Older drafts are in `archive/`.
 
 ### Tracked Tickers
 

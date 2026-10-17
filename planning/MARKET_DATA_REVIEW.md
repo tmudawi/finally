@@ -163,3 +163,35 @@ Recommendation: point PLAN.md §6 at `MARKET_DATA_SUMMARY.md` + `MARKET_DATA_DES
 6. Findings 5-9 as the API layer is built.
 
 The simulator path, which is the default, is usable now. Findings 1, 2 and 6 matter only when `MASSIVE_API_KEY` is set.
+
+## 7. Resolution (2026-10-16, branch `market-data-review-fixes`)
+
+All findings are fixed. Result: **116 tests pass** (5 repeated runs, all green), **99% coverage**, `ruff check` and `ruff format --check` clean, **0 warnings**.
+
+| # | Fix | Evidence |
+|---|---|---|
+| 1 | New `parse_snapshot()`:<br>• timestamp from `last_trade.sip_timestamp / 1e9`, falling back to `updated`, then `time.time()`<br>• price from `last_trade.price`, falling back to `min.close`, `day.close`, `prev_day.close`<br>`start()` also raises if the first poll prices none of the tracked tickers. | `test_massive.py` builds real `TickerSnapshot.from_dict(...)` objects: `TestParseSnapshot`, `test_timestamp_converted_from_nanoseconds`, `test_start_with_no_prices_raises` |
+| 2 | `_store()` writes only snapshots whose ticker is still tracked. `PriceCache.remove()` now bumps `version` (gap found in `MARKET_DATA_DESIGN.md` §1 item 4; proven: version stayed 1 → 1 on remove). SSE sends an empty map after the last removal. | `test_ticker_removed_during_poll_is_not_written_back`, `test_remove_bumps_version_only_when_present`, `test_removal_is_sent` |
+| 3 | `create_stream_router` builds a new `APIRouter` per call | `test_each_router_is_independent` |
+| 4 | `event_probability` default 0.001 → 0.0001 (`GBMSimulator` and `SimulatorDataSource`). Re-measured: 10, 8 and 12 jumps per simulated hour across 10 tickers (seeds 1-3), down from 71. No time-scale change; the diffusion stays real-time. | `test_events_move_price_2_to_5_percent` |
+| 5 | `normalize_ticker()` in `interface.py`, used by both sources in `start/add/remove` | `test_tickers_are_normalized`, contract tests with lowercase input |
+| 6 | `UnknownTickerError` in `interface.py`, exported from `app.market`. After `start`, `MassiveDataSource.add_ticker` fetches the ticker's snapshot at once, caches it, and raises when it has no data. The simulator now treats re-adding a ticker as a no-op too: the contract test caught it rewriting the cache. | `test_add_after_start_prices_immediately`, `test_add_unknown_ticker_raises`, `test_add_existing_ticker_is_noop[simulator]` |
+| 7 | With no tickers, the first poll checks the key against `SPY`. The probe ticker is not cached. | `test_start_with_no_tickers_still_validates_key` |
+| 8 | FastAPI upgraded 0.128.7 → 0.143.3. The SSE route uses native `EventSourceResponse`/`ServerSentEvent`, which handles keepalive pings and disconnects; the hand-written `CancelledError` handling is gone. | `test_live_endpoint_streams_prices` (real uvicorn socket) |
+| 9 | Simulator uses a seeded `numpy` `Generator`. New tests:<br>• GBM statistics: per-tick sd within 5% of `sigma*sqrt(dt)` for 5 tickers; correlations 0.6/0.5/0.3/0.3 within ±0.05; jump size 2-5%<br>• seeded determinism<br>• `test_contract.py`: both sources<br>Strengthened tests:<br>• `test_exception_resilience` now injects a failing step<br>• `test_custom_event_probability` checks the jump size<br>• the rounding test now compares values instead of strings | `test_simulator.py::TestGBMStatistics`, `test_contract.py` |
+| 10 | `tests/conftest.py` deleted (87 warnings gone). `ruff format` applied. The uvicorn smoke test runs with `ws="none"`, removing 2 websockets deprecation warnings. `to_dict()` is kept for the demo. | `pytest` output: no warnings |
+
+Docs (§4):
+- PLAN.md §6 now points to `MARKET_DATA_SUMMARY.md`, `MARKET_DATA_DESIGN.md` and `MASSIVE_API.md`.
+- Moved to `archive/`:
+  - `MARKET_INTERFACE.md`, renamed `MARKET_INTERFACE_v2.md`;
+  - `MARKET_SIMULATOR.md`, renamed `MARKET_SIMULATOR_v2.md`;
+  - `MARKET_DATA_DESIGN_GREENFIELD.md`.
+- Updated:
+  - `MARKET_DATA_SUMMARY.md`;
+  - `backend/CLAUDE.md`;
+  - the `MARKET_DATA_DESIGN.md` §18 checklist.
+
+Still open:
+- The Massive source has not been run against the live API, because no paid key is available.
+- Wiring into the app (lifespan, routes, tracked tickers = watchlist ∪ positions) belongs to the backend API work.
