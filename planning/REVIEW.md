@@ -86,3 +86,7 @@ A consolidated implementation guide for the market data backend: full module cod
 ### Verdict
 
 Documentation only, safe to commit. Consider finding 1 before the backend agent starts.
+
+### Resolution (2026-10-16)
+
+- PR #3 merged a different `planning/MARKET_DATA_DESIGN.md` into `main`, written against the existing `backend/app/market/` code. That version is kept at that path. The design reviewed above was moved to `planning/MARKET_DATA_DESIGN_GREENFIELD.md`.
