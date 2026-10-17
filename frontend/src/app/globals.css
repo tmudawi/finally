@@ -1,0 +1,67 @@
+@import "tailwindcss";
+
+@theme {
+  --color-canvas: #0d1117;
+  --color-panel: #121923;
+  --color-rule: #243041;
+  --color-ink: #c9d1d9;
+  --color-muted: #7d8590;
+  --color-up: #3fb950;
+  --color-down: #f85149;
+  --color-amber: #ecad0a;
+  --color-blue: #209dd7;
+  --color-purple: #753991;
+  --font-sans: var(--font-plex), "Arial Narrow", sans-serif;
+}
+
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+}
+
+@layer components {
+  .field {
+    @apply h-7 rounded-sm border border-rule bg-canvas px-2 text-sm text-ink outline-none placeholder:text-muted focus:border-blue;
+  }
+  .btn-submit {
+    @apply h-7 rounded-sm bg-purple px-3 text-sm font-semibold text-white hover:brightness-125 disabled:opacity-50;
+  }
+  .btn-sell {
+    @apply h-7 rounded-sm border border-purple px-3 text-sm font-semibold text-ink hover:bg-purple/30;
+  }
+  .dot {
+    @apply h-1.5 w-1.5 rounded-full bg-amber;
+    animation: pulse-dot 900ms ease-in-out infinite;
+  }
+}
+
+.price-cell {
+  transition: background-color 500ms ease-out;
+}
+.flash-up {
+  background-color: rgb(63 185 80 / 0.35);
+  transition: none;
+}
+.flash-down {
+  background-color: rgb(248 81 73 / 0.35);
+  transition: none;
+}
+
+:focus-visible {
+  outline: 1px solid var(--color-amber);
+  outline-offset: 1px;
+}
+
+@keyframes pulse-dot {
+  50% {
+    opacity: 0.2;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dot {
+    animation: none;
+  }
+}
