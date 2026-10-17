@@ -66,8 +66,6 @@ class PriceUpdate:
             "price": self.price,
             "prev_price": self.previous_price,
             "change_pct": self.change_pct,
-            "timestamp": datetime.fromtimestamp(self.timestamp, UTC).strftime(
-                "%Y-%m-%dT%H:%M:%SZ"
-            ),
+            "timestamp": datetime.fromtimestamp(self.timestamp, UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "direction": self.direction,
         }

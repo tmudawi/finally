@@ -5,6 +5,10 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 
 
+class UnknownTickerError(ValueError):
+    """Raised by add_ticker when the data source has no data for a symbol."""
+
+
 class MarketDataSource(ABC):
     """Contract for market data providers.
 
@@ -42,7 +46,8 @@ class MarketDataSource(ABC):
     async def add_ticker(self, ticker: str) -> None:
         """Add a ticker to the active set. No-op if already present.
 
-        The next update cycle will include this ticker.
+        Once started, the ticker has a cached price when this returns.
+        Raises UnknownTickerError if the source has no data for it.
         """
 
     @abstractmethod
@@ -55,3 +60,8 @@ class MarketDataSource(ABC):
     @abstractmethod
     def get_tickers(self) -> list[str]:
         """Return the current list of actively tracked tickers."""
+
+
+def normalize_ticker(ticker: str) -> str:
+    """Canonical ticker form used by every source: stripped and uppercase."""
+    return ticker.strip().upper()

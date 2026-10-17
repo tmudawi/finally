@@ -5,7 +5,7 @@ description = "FinAlly backend - AI Trading Workstation"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "fastapi>=0.115.0",
+    "fastapi>=0.143.3",
     "uvicorn[standard]>=0.32.0",
     "numpy>=2.0.0",
     "massive>=1.0.0",

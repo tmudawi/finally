@@ -101,3 +101,13 @@ class TestPriceCache:
         cache = PriceCache()
         update = cache.update("AAPL", 190.12345)
         assert update.price == 190.12
+
+    def test_remove_bumps_version_only_when_present(self):
+        """Removal is a change the SSE stream must see; a no-op removal is not."""
+        cache = PriceCache()
+        cache.update("AAPL", 190.00)
+        version = cache.version
+        cache.remove("AAPL")
+        assert cache.version == version + 1
+        cache.remove("AAPL")
+        assert cache.version == version + 1

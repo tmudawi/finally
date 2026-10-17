@@ -94,20 +94,27 @@ class TestSimulatorDataSource:
         await source.stop()
 
     async def test_exception_resilience(self):
-        """Test that simulator continues running after errors."""
+        """A failing step is logged and the loop keeps running."""
         cache = PriceCache()
-        source = SimulatorDataSource(price_cache=cache, update_interval=0.05)
-
-        # Start with a valid ticker
+        source = SimulatorDataSource(price_cache=cache, update_interval=0.01)
         await source.start(["AAPL"])
+        real_step = source._sim.step
+        calls = 0
 
-        # Wait for some updates
-        await asyncio.sleep(0.15)
+        def flaky_step():
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                raise RuntimeError("boom")
+            return real_step()
 
-        # Task should still be running
-        assert source._task is not None
+        source._sim.step = flaky_step
+        version = cache.version
+        await asyncio.sleep(0.1)
+
+        assert calls > 2
+        assert cache.version > version
         assert not source._task.done()
-
         await source.stop()
 
     async def test_custom_update_interval(self):
@@ -125,14 +132,27 @@ class TestSimulatorDataSource:
         await source.stop()
 
     async def test_custom_event_probability(self):
-        """Test creating source with custom event probability."""
+        """With event_probability=1 every tick jumps by 2-5%."""
         cache = PriceCache()
-        # Very high event probability for testing
         source = SimulatorDataSource(
-            price_cache=cache, update_interval=0.1, event_probability=1.0
+            price_cache=cache, update_interval=0.01, event_probability=1.0, seed=3
         )
         await source.start(["AAPL"])
+        await asyncio.sleep(0.05)
+        await source.stop()
 
-        # Just verify it starts and stops cleanly
-        await asyncio.sleep(0.2)
+        update = cache.get("AAPL")
+        move = abs(update.price / update.previous_price - 1)
+        assert 0.019 < move < 0.051
+
+    async def test_tickers_are_normalized(self):
+        cache = PriceCache()
+        source = SimulatorDataSource(price_cache=cache, update_interval=10)
+        await source.start([" aapl "])
+        await source.add_ticker("msft")
+        assert source.get_tickers() == ["AAPL", "MSFT"]
+        assert cache.get_price("AAPL") == 190.0  # Seed price, not a random one
+
+        await source.remove_ticker("msft")
+        assert "MSFT" not in cache
         await source.stop()
