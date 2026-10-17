@@ -30,7 +30,7 @@ def create_stream_router(price_cache: PriceCache) -> APIRouter:
         Streams all tracked ticker prices every ~500ms. The client connects
         with EventSource and receives events in the format:
 
-            data: {"AAPL": {"ticker": "AAPL", "price": 190.50, ...}, ...}
+            data: {"AAPL": {"price": 190.5, "prev_price": 190.4, "change_pct": 0.42, ...}, ...}
 
         Includes a retry directive so the browser auto-reconnects on
         disconnection (EventSource built-in behavior).
@@ -78,7 +78,7 @@ async def _generate_events(
                 prices = price_cache.get_all()
 
                 if prices:
-                    data = {ticker: update.to_dict() for ticker, update in prices.items()}
+                    data = {ticker: update.to_sse_dict() for ticker, update in prices.items()}
                     payload = json.dumps(data)
                     yield f"data: {payload}\n\n"
 

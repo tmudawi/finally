@@ -20,16 +20,16 @@ class MassiveDataSource(MarketDataSource):
     Polls GET /v2/snapshot/locale/us/markets/stocks/tickers for all watched
     tickers in a single API call, then writes results to the PriceCache.
 
-    Rate limits:
-      - Free tier: 5 req/min → poll every 15s (default)
-      - Paid tiers: higher limits → poll every 2-5s
+    Requires the Stocks Starter plan or above (a free key gets HTTP 403 on the
+    snapshot endpoint). Paid plans have unlimited calls → poll every 5s (default).
+    change_pct is relative to the previous day's close.
     """
 
     def __init__(
         self,
         api_key: str,
         price_cache: PriceCache,
-        poll_interval: float = 15.0,
+        poll_interval: float = 5.0,
     ) -> None:
         self._api_key = api_key
         self._cache = price_cache
@@ -42,8 +42,17 @@ class MassiveDataSource(MarketDataSource):
         self._client = RESTClient(api_key=self._api_key)
         self._tickers = list(tickers)
 
-        # Do an immediate first poll so the cache has data right away
-        await self._poll_once()
+        # Immediate first poll so the cache has data right away. If it fails (bad key, plan
+        # without snapshot access) fail fast so the app stops at startup.
+        try:
+            await self._poll_once(raise_on_error=True)
+        except Exception as e:
+            self._client = None
+            raise RuntimeError(
+                f"Massive API first poll failed: {e}. Check MASSIVE_API_KEY and that the plan "
+                "includes snapshot access (Stocks Starter or above), or leave it empty to "
+                "use the simulator."
+            ) from e
 
         self._task = asyncio.create_task(self._poll_loop(), name="massive-poller")
         logger.info(
@@ -86,7 +95,7 @@ class MassiveDataSource(MarketDataSource):
             await asyncio.sleep(self._interval)
             await self._poll_once()
 
-    async def _poll_once(self) -> None:
+    async def _poll_once(self, raise_on_error: bool = False) -> None:
         """Execute one poll cycle: fetch snapshots, update cache."""
         if not self._tickers or not self._client:
             return
@@ -105,6 +114,7 @@ class MassiveDataSource(MarketDataSource):
                         ticker=snap.ticker,
                         price=price,
                         timestamp=timestamp,
+                        reference_price=self._prev_close(snap),
                     )
                     processed += 1
                 except (AttributeError, TypeError) as e:
@@ -116,9 +126,19 @@ class MassiveDataSource(MarketDataSource):
             logger.debug("Massive poll: updated %d/%d tickers", processed, len(self._tickers))
 
         except Exception as e:
+            if raise_on_error:
+                raise
             logger.error("Massive poll failed: %s", e)
             # Don't re-raise — the loop will retry on the next interval.
             # Common failures: 401 (bad key), 429 (rate limit), network errors.
+
+    @staticmethod
+    def _prev_close(snap) -> float | None:
+        """Previous day's close from a snapshot, or None if unavailable."""
+        close = getattr(getattr(snap, "prev_day", None), "close", None)
+        if isinstance(close, (int, float)) and not isinstance(close, bool) and close > 0:
+            return float(close)
+        return None
 
     def _fetch_snapshots(self) -> list:
         """Synchronous call to the Massive REST API. Runs in a thread."""
